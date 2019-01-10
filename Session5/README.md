@@ -1,6 +1,4 @@
 
-# Welcome 
-
 This directory holds course materials for Session 5, Advanced Topics in Data Science. The core of this session is learning ideas and coding techniques that will help you efficiently navigate the Circle of Data Science: 
 
 ![data science](https://ismayc.github.io/moderndiver-book/images/tidy1.png)
@@ -53,7 +51,7 @@ A map of the greater Boston area should appear in your viewer pane. Take a scree
 
 Please email the instructor if either of these tests do not produce the expected result. 
 
-### After the Session
+# After the Session
 
 Write a short paragraph addressing the following question: 
 
