@@ -115,11 +115,14 @@ raw_listings %>%
 
 #' Alternative, we can 'arrange' to see the highest-lowest priced listings:
 
-raw_listings %>% 
-  mutate(nprice=clean_price(price))%>%
-  select(name, price, nprice) %>%
-  arrange(desc(nprice)) %>%
-  head()
+#' write with me
+
+
+
+
+
+
+
 #' 
 #' 
 #' Note that the tidyverse packages generally do not change the dataframe objects they act on. 
@@ -135,19 +138,19 @@ hist(raw_listings$numericprice)
 plot(raw_listings$review_scores_rating, raw_listings$nprice)	
 #' 
 #' Now, let's learn some more verbs. Let's say we're interested in understanding the relationship
-#'  between bedrooms and price. But some of the listings don't have data on bathrooms; 
+#'  between bedrooms and price. But some of the listings don't have data on bedrooms; 
 #'  The `is.na()` function returns "True" if something is `NA`, so `!is.na()` (read: "*not* is NA") 
 #'  returns the opposite.
 #'  The 'count' command helps us count how many NA there are in a column.
 #' 
 ## ------------------------------------------------------------------------
-raw_listings %>% count(is.na(bathrooms))
+raw_listings %>% count(is.na(bedrooms))
 
 #' 
 #' Let's filter these out:
 #' 
 ## ------------------------------------------------------------------------
-raw_listings %>% filter(!is.na(bathrooms)) %>% head()
+raw_listings %>% filter(!is.na(bedrooms)) %>% head()
 
 #' 
 #' Finally, let's combine some of these to make a clean dataset to work with. We want to make sure 
@@ -296,11 +299,11 @@ by.rating.bedroom %>%
 #'  already a little prettier than the Base R version.  But most importantly, this is
 #'   much more extensible.  Let's see how.
 #' 
-#' **Adding aesthetics:** Suppose we want to see these points broken out by the number of bathrooms.
+#' **Adding aesthetics:** Suppose we want to see these points broken out by the number of bedrooms.
 #'  One way to get that extra dimension is to color these points by the number of bedrooms. 
 #' 
 ## ------------------------------------------------------------------------
-by.bedroom.rating %>%
+by.rating.bedroom %>%
   ggplot(aes(x=review_scores_rating, y=med.price, color=factor(bedrooms))) +
   geom_point()
 
@@ -316,7 +319,7 @@ by.bedroom.rating %>%
 #' The 'geom_smooth' command creates a line that represents smoothed conditional means
 #' 
 ## ------------------------------------------------------------------------
-by.bedroom.rating %>%
+by.rating.bedroom %>%
   ggplot(aes(x=review_scores_rating, y=med.price, color=factor(bedrooms))) +
   geom_point() +
   geom_smooth(method = lm)
@@ -545,11 +548,11 @@ listings %>%
 
 
 
+
 #' 
 #' BONUS: We can enforce that the color scale runs between two colors by adjusting 
 #' a `scale_fill_gradient` theme, like this:
 ## ----exercise-------------------------------------------------------
-
 
 
 
@@ -641,7 +644,7 @@ long.price %>% head()  # take a peek
 #' 
 #' 
 #' **Quick exercise:** What's the gather command for the quarterly earnings table above?
-#' *Answer:* 
+#' *Answer:*
 #' 
 #' 
 #' To spread it back out into the original wide format, we can use `spread`. 
@@ -798,6 +801,70 @@ rooms.prices %>%
 #' *ANSWER:*
 ## ------------------------------------------------------------------------
 
+
+
+#' 
+#' # Bonus: Visualizing Map Data
+#' 
+#' Spatial data has become much easier to work with in R in recent years, thanks to some new packages. Here, we'll work with two of the most powerful:
+#' 
+#' - `sf`: Tidyverse-compatible tools for loading and manipulating spatial data.
+#' - `leaflet`: Easy interactive maps via the Javascript library Leaflet.
+#' 
+#' Let's say we want to plot average listing prices by zip code.
+#' 
+#' First, let's grab some zip code shapes from [Analyze Boston](http://bostonopendata-boston.opendata.arcgis.com/datasets/53ea466a189b4f43b3dfb7b38fa7f3b6_1). Unzip this in your working directory and load it into a dataframe:
+#' 
+## ------------------------------------------------------------------------
+library(sf)
+library(leaflet)
+shp <- read_sf('ZIP_Codes.shp')
+
+#' 
+#' Here, `shp` is an sf ("simple features") dataframe. You can manipulate it using the usual dplyr
+#'  operations; it just has a column containing a special "geometry" column that has the geometry 
+#'  (point, line, polygon, etc.) corresponding to each row.
+#' 
+#' Next, let's grab the relevant information from the listings data and turn it into dataframe:
+#' 
+## ------------------------------------------------------------------------
+listing_geos <- listings %>%
+  select(nprice, longitude, latitude) %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = st_crs(shp))
+
+#' 
+#' Note: the `crs` argument sets the coordinate system of our new spatial dataframe. Since we're 
+#' going to join it with `shp`, we want their coordinate systems to be the same.
+#' 
+#' Let's join these two and aggregate the dataframes. The `join` argument tells `st_join` how to 
+#' match shapes. In this case, we join a shape from `shp` with a point in `listing_geos` if the 
+#' shape contains the point.
+#' 
+## ------------------------------------------------------------------------
+by.zip <- st_join(shp, listing_geos, join = st_contains) %>%
+  group_by(ZIP5) %>%
+  summarise(price = mean(nprice, na.rm = TRUE))
+
+#' 
+#' Finally, we plot the map with leaflet:
+#' 
+## ------------------------------------------------------------------------
+leaflet(by.zip) %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(weight = 1,
+              fillColor = ~colorNumeric("YlOrRd", domain = price)(price),
+              popup = ~as.character(price))
+
+#' 
+#' Breaking this down:
+#' 
+#' - `leaflet(by.zip)` creates a leaflet map object and tells it to refer to `by.zip` for data.
+#' - `addProviderTiles` draws the map tiles.
+#' - `addPolygons` draws the shapes, with some "aesthetics" just like ggplot: weight, fillColor, and popup. The main difference is that we specify them as formulas (denoted by the `~` character) instead of just variable names.
+#' 
+#' 
+#' 
+#' 
 #'
 #' # Wrapping Up
 #' 
