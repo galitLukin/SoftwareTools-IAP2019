@@ -1,5 +1,5 @@
 # IAP 2018
-# 15.S60 Computing in Optimization and Statistics
+# 15.S41 – Software Tools for Business Analytics
 # Lecture 1: Introduction to R
 
 # Script file intro.R
@@ -68,6 +68,11 @@ help(log)
 # with either <- or = 
 x <- 2^3
 y = 6
+matrix(1,nrow=2)
+#This just makes a 2 row matrix.
+matrix(1,nrow<-2)
+#This also gives you a two row matrix,
+#but now we also have an object called nrow which evaluates to 2
 
 # Use just the variable name to display the output
 x
