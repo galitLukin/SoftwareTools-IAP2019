@@ -135,19 +135,19 @@ hist(raw_listings$numericprice)
 plot(raw_listings$review_scores_rating, raw_listings$nprice)	
 #' 
 #' Now, let's learn some more verbs. Let's say we're interested in understanding the relationship
-#'  between bedrooms and price. But some of the listings don't have data on bathrooms; 
+#'  between bedrooms and price. But some of the listings don't have data on bedrooms; 
 #'  The `is.na()` function returns "True" if something is `NA`, so `!is.na()` (read: "*not* is NA") 
 #'  returns the opposite.
 #'  The 'count' command helps us count how many NA there are in a column.
 #' 
 ## ------------------------------------------------------------------------
-raw_listings %>% count(is.na(bathrooms))
+raw_listings %>% count(is.na(bedrooms))
 
 #' 
 #' Let's filter these out:
 #' 
 ## ------------------------------------------------------------------------
-raw_listings %>% filter(!is.na(bathrooms)) %>% head()
+raw_listings %>% filter(!is.na(bedrooms)) %>% head()
 
 #' 
 #' Finally, let's combine some of these to make a clean dataset to work with. We want to make sure 
@@ -296,11 +296,11 @@ by.rating.bedroom %>%
 #'  already a little prettier than the Base R version.  But most importantly, this is
 #'   much more extensible.  Let's see how.
 #' 
-#' **Adding aesthetics:** Suppose we want to see these points broken out by the number of bathrooms.
+#' **Adding aesthetics:** Suppose we want to see these points broken out by the number of bedrooms.
 #'  One way to get that extra dimension is to color these points by the number of bedrooms. 
 #' 
 ## ------------------------------------------------------------------------
-by.bedroom.rating %>%
+by.rating.bedroom %>%
   ggplot(aes(x=review_scores_rating, y=med.price, color=factor(bedrooms))) +
   geom_point()
 
@@ -316,7 +316,7 @@ by.bedroom.rating %>%
 #' The 'geom_smooth' command creates a line that represents smoothed conditional means
 #' 
 ## ------------------------------------------------------------------------
-by.bedroom.rating %>%
+by.rating.bedroom %>%
   ggplot(aes(x=review_scores_rating, y=med.price, color=factor(bedrooms))) +
   geom_point() +
   geom_smooth(method = lm)

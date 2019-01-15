@@ -5,19 +5,19 @@
 ###########
 
 # **Exercise 1. Conditional statements.**  Earlier we did a `table` by looking at rooms that accommodated "at least 4" (`>= 4`).  We can also look at "at most 4" (`<= 4`), "exactly 4" (`== 4`), or "anything but 4" (`!= 4`) people, and of course "strictly less than 4" (`<`) and "strictly more than 4" (`>`).  We can also join conditional statements together by saying "at most 4 OR exactly 7" (`accommodates <= 4 | accommodates == 7`) where we used the OR operator `|`, or a similar statement using the AND operator `&`.  	
- 	
+
 # How could we do a table of listing counts by room type comparing how many are/are not in the Back Bay neighborhood? 	
 
 # *ANSWER:*	
-table(listings$room_type, listings$neighbourhood == 'Back Bay')	
+
 
 
 # **Exercise 2. The `%in%` operator.**  What if we wanted to check if the listing was in one of several neighborhoods, like the North End/West End/Beacon Hill strip?  We can put the neighborhoods in a vector (or list) and check if the listing is `%in%` the vector, for example `listings$neighbourhood %in% c('North End', 'West End', 'Beacon Hill')`.  	
-	
+
 # How could we check the number of listings by room type that accommodate either 2, 4, or 7 AND have at least 2 bedrooms?	
 
 # *ANSWER:*	
-table(listings$room_type, listings$accommodates %in% c(2,4,7) & listings$bedrooms >= 2)	
+
 
 # (What happens if we keep passing `table()` more and more arguments, like `table(..., listings$accommodates==2, listings$accommodates==4, ...)` ?)	
 
@@ -27,29 +27,25 @@ table(listings$room_type, listings$accommodates %in% c(2,4,7) & listings$bedroom
 # Try creating a new column in `listings` named "last_review_date" that has the "last_review" column in `Date` format.	
 
 # *ANSWER:*	
-listings$host_since_date = as.Date(listings$host_since, '%Y-%m-%d')	
+
 
 # This allows us to treat dates like numbers, and R will do all the conversion and math "behind the scenes" for us.  Use `min()`, `max()`, and `mean()` to find the earliest, last, and average date a host became a host.  Or how about: how many days between the 3rd and 4th listings' hosts dates?  	
- 	
+
 # *ANSWER:*	
-min(listings$host_since_date)	
-max(listings$host_since_date)	
-mean(listings$host_since_date)	
-listings[4,'host_since_date'] - listings[3,'host_since_date']	
+
 
 # There is a ton more to learn here, if you are interested.  `Date` can handle any format, including numeric formats (like Excel generates or UNIX time stamps), but sometimes the difficulty is something like handling dates that are formatted in different ways in the same column, or contain errors ("Marhc 27th") ...	
 
 
 # ***Exercise 4. Text handling.***  We have seen the `chr` data type, which can be single characters or strings of characters.  We can get substrings of a string using `substr()`; for example `substr("I love R", start=1, stop=4)` gives "I lo".  We can paste two strings together using `paste()`; for example `paste("Hello", "there")` gives "Hello there" (single space is default).  We can substitute one string into another using `sub()`; for example `sub("little", "big", "Mary had a little lamb")` gives "Mary had a big lamb".  (We used `gsub()` earlier, which just allows multiple substitutions, not just the first occurrence.)	
- 	
+
 # Try creating a new column with the first 5 letters of the host name followed by the full name of the listing without spaces.	
- 	
+
 # *ANSWER:*	
-listings$host_list_name = paste(substr(listings$host_name,start=1,stop=5),	
-                                gsub(' ','',listings$name))	
+
 
 # We are not going to cover **escape characters**, **string formatting**, or the more general topic of **regular expressions** ("regex"), but we have seen some of these topics already.  When converting price to numeric, we used the string `\\$|,` to represent "any dollar sign OR comma", which is an example of escape characters and regular expressions.  When converting dates, we used strings like `%Y` to represent 4-digit year; this is an example of string formatting.	
- 	
+
 
 
 
@@ -60,14 +56,10 @@ listings$host_list_name = paste(substr(listings$host_name,start=1,stop=5),
 
 # We'll now introduce a few new tricks for some of the dplyr verbs we covered earlier, but this is by no means a comprehensive treatment.  	
 
- 	
+
 # **Exercise 1. More with `select`.**  In addition to selecting columns, `select` is useful for temporarily renaming columns.  We simply do an assignment, for example `select('New colname'=old_col_name)`.  This is helpful for display purposes when our column names are hideous.  Try generating the summary table of median price by room type but assigning some nicer column labels.	
 # *ANSWER:*	
-listings %>%	
-  mutate(price = as.numeric(gsub('\\$|,','',price))) %>%	
-  group_by(room_type) %>%	
-  summarize(med = median(price)) %>%	
-  select('Room type'=room_type, 'Median price'=med)	
+
 
 # Another useful trick with select (and other functions in R) is to include *all but* a column by using the minus `-` sign before the excluded column.  For example `listings %>% select(-id)` selects every column *except* the listing ID.	
 
@@ -78,10 +70,7 @@ listings %>% group_by(room_type, accommodates) %>% count()
 # This is the same information we got earlier using a `table` command (although in an interestingly *longer* format, which we will talk about later).  Try finding the median daily price of a listing, grouped by number of bedrooms and number of bathrooms:	
 
 # *ANSWER:*	
-listings %>%	
-  mutate(price = as.numeric(gsub('\\$|,','',price))) %>%	
-  group_by(bedrooms, bathrooms) %>%	
-  summarize(med = median(price))	
+
 
 
 # **Exercise 3. More with `mutate`.**  The code block earlier with multiple mutation commands got a little repetitive, and we are lazy.  We would rather have a verb so we can select some columns, and apply some function to `mutate_all` of them:	
@@ -99,14 +88,10 @@ listings %>%
 
 # This time also notice that we actually didn't make new columns, we mutated the existing ones.  	 	
 # (There is also a variation for conditional operations (`mutate_if`) and analogous versions of all of this for summarize (`summarize_all`, ...).  We don't have time to cover them all, but if you ever need it, you know it's out there!)	
- 	
+
 # Try using one of these methods to convert all the date columns to `Date` (fortunately they all use the same formatting).	
- 	
+
 # *ANSWER:*	
-listings %>%	
-  select(last_scraped, host_since, first_review, last_review) %>%	
-  mutate_all(funs(as.Date(., "%Y-%m-%d"))) %>%	
-  head()	
 
 
 
@@ -127,27 +112,17 @@ listings %>%
   facet_grid(.~room_type)	
 
 # If we interpret the facet layout as an x-y axis,the `.~room_type` formula means layout nothing (`.`) on the y-axis, against `room_type` on the x-axis.  Sometimes we have too many facets to fit on one line, and we want to let ggplot do the work of wrapping them in a nice way.  For this we can use `facet_wrap()`.  Try plotting the distribution of price, faceted by how many the listing accommodates, using `facet_wrap()`.  Note that now we can't have anything on the y-axis (since we are just wrapping a long line of x-axis facets), so we drop the period from the `~` syntax.	
- 	
+
 # *ANSWER:*	
-listings %>%	
-  filter(price < 500) %>%	
-  ggplot(aes(x=price, y=..density..)) +	
-  geom_histogram(binwidth=50, center=25, position='dodge', color='black') +	
-  labs(x='Price', y='Frac. of Listings') +	
-  facet_wrap(~accommodates)	
+
 
 # Note that if you tried to use the colorblind palette again, you probably ran out of colors and ggplot complained!  (You can use a larger palette, a gradient palette, ...)	
 
- 	
+
 # **Exercise 2. `geom_tile`**  A useful geometry for displaying heatmaps in `ggplot` is `geom_tile`.  This is typically used when we have data grouped by two different variables, and so we need visualize in 2d.  For example, in an exercise for the last section we looked at median price grouped by # bedrooms and bathrooms.  Try visualizing this table with the `geom_tile` geometry.	
 
 # *ANSWER:*	
-listings %>%	
-  mutate(price = as.numeric(gsub('\\$|,','',price))) %>%	
-  group_by(bedrooms, bathrooms) %>%	
-  summarize(med = median(price)) %>%	
-  ggplot(aes(x=bedrooms, y=bathrooms, fill=med)) +	
-  geom_tile()	
+
 
 # BONUS: We can enforce that the color scale runs between two colors by adjusting a `scale_fill_gradient` theme, like this:	
 listings %>%	
@@ -164,24 +139,14 @@ listings %>%
 # **Exercise 3. Getting Dodgy.**  The earlier example where we plotted the histograms grouped by room type is a little hard to read since each set of bars is right next to each other, and maybe we didn't like the `geom_freqpoly` approach.  Another way would be to put a little separation between each threesome of bars.  We can do these kind of tweaks by adjusting the `position=` argument in the histogram geometry.  Instead of just `position='dodge'`, try reproducing the plot using `position=position_dodge(...)`.  (Check out the documentation by typing `?position_dodge` into the console.)	
 
 # *ANSWER:*	
-listings %>%	
-  filter(price < 500) %>%	
-  ggplot(aes(x=price, y=..density.., fill=room_type)) +	
-  geom_histogram(binwidth=50, center=25, position=position_dodge(width=35), color='black') +	
-  labs(x='Price', y='Frac. of Listings', fill='Room type') +	
-  scale_fill_manual(values=cbbPalette)	
+
 
 # This is still a little awkward having the bars overlap though, and also misleading to have separation between bar when the bins are continous...  check out and try a few of the other position adjustments (for example in the "See Also" of the documentation for position_dodge).	
 
- 	
+
 # **Exercise 4. Count em up: `geom_count`.**  A common desire in plotting scatters is to have points which occur more often to appear larger (instead of just plotting them on top of each other).  ggplot provides this functionality built-in with `geom_count`.  Try plotting our price vs review score scatter using `geom_count` instead of `geom_point`.  Don't group by score, just plot every listing.  Try also playing around with alpha settings, and fitting a linear regression.	
- 	
+
 # *ANSWER:*	
-listings %>%	
-  filter(!is.na(review_scores_rating), number_of_reviews > 10) %>%	
-  ggplot(aes(x=review_scores_rating, y=price)) +	
-  geom_count(color='blue', alpha=0.2) +	
-  geom_smooth(method='lm')	
 
 
 # **(Optional) The Director's Cut.**  Recall we weren't crazy about the way we grouped by a continuous variable in that price vs. review score scatter plot earlier.  We could be a little more precise by doing a histogram simultaneously on price AND score, and plotting the median of each 2d bin.  For more on this, see "Additional Reading" below.  Another way to get around this problem would be to just create a new variable with an approximate, or binned, score rating, like low/medium/high (giving us a factor, instead of a continuous variable) by `cut`ting the continuous variable into bins.  	
