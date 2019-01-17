@@ -184,28 +184,13 @@ summary(lm1)
 # significantly different than zero, so things are okay from an
 # inference perspective.	
 
-# As another check on inference quality, let's plot the fitted line.
-# There are some nifty functions in the `modelr` package that make
-# interacting with models easy in the `tidyr` and `dplyr` setting.
-# We'll use `modelr::add_predictions()` here.	
-# install.packages("modelr")
+#' Additionally, it is also important to validate the linear regression 
+#' assumptions; fortunately R has built-in functionality to do this
+plot(lm1)
+
+#' To have a nicer visualization of the residuals for our model, let's 
+#' generate a boxplot for each accommodation size
 library(modelr)
-listingsTrain %>%	
-  add_predictions(lm1) %>%	
-  ggplot(aes(x = accommodates)) +	
-  geom_point(aes(y = price)) +	
-  geom_line(aes(y = pred), color = 'red')
-
-# Nice. We can also remove the linear trend and check the residual
-# uncertainty, which we'll do here using `modelr::add_residuals()`.
-# This is helpful to make sure that the residual uncertainty looks
-# like random noise rather than an unidentified trend.	
-listingsTrain %>%	
-  add_residuals(lm1, var = "resid") %>%	
-  ggplot(aes(x = accommodates, y = resid)) + 
-  geom_point()
-
-# Since we have finitely many values, maybe box plots tell a better story:	
 listingsTrain %>%	
   add_residuals(lm1, var = "resid") %>%	
   group_by(as.factor(accommodates)) %>%	
@@ -234,22 +219,30 @@ listingsTest %>%
 # SSE = $\sum_{i=1}^n (\hat{y}_i - y_i)^2$  ("Sum of Squares Error")
 # SST = $\sum_{i=1}^n (\bar{y} - y_i)^2$  ("Sum of Squares Total")
 
+#' Since we will compute in and out-of-sample R^2 a number of times during
+#' this script, I will provide a function; whenever you find yourself doing
+#' the same thing many times, it's usually best to re-write the code using
+#' a function
+compute_r2 = function(y_test, y_pred, y_bar) {
+  val = 1 - sum((y_pred - y_test)^2) / sum((y_bar - y_test)^2)
+  return(val)
+}
+
 # In these equations, $\hat{y}_i$ is the predicted value for test
 # observation $i$, $y_i$ is the actual value, $n$ is the size of
 # the test set, and $\bar{y}$ is the mean of $y_i$ in the training set.
 # Let's code this up.
 pred_test <- predict(lm1, newdata = listingsTest)
-OSR2 <- 1 - sum((pred_test - listingsTest$price) ^ 2) /
-  sum((mean(listingsTrain$price) - listingsTest$price) ^ 2)
+osr2 = compute_r2(listingsTest$price, pred_test, mean(listingsTrain$price))
 
 # The in-sample R^2 value should agree with the "Multiple R-squared"
 # value returned by summary().  Are we overfitting?
 summary(lm1)
-OSR2
+osr2
 
 # Let's save this into a data.frame to be accessed later
 results <- data.frame(model = "original", R2 = summary(lm1)$r.squared,
-                      OSR2 = OSR2, stringsAsFactors = F)
+                      OSR2 = osr2, stringsAsFactors = F)
 
 #### Exercise 2 ####
 # 1. Building a simple model
@@ -286,51 +279,6 @@ OSR2_new <- 1 - sum((pred_test - listingsTest$price) ^ 2) /
   sum((mean(listingsTrain$price) - listingsTest$price) ^ 2)
 OSR2_new
 results # Original model R^2 and OSR^2
-
-# 3. Median Regression
-# # Since we're dealing with data on price,
-# we expect that there will be high outliers. While least-squares
-# regression is reliable in many settings, it has the property 
-# that the estimates it generates depend quite a bit on the outliers.
-# One alternative, median regression, minimizes *absolute* error
-# rather than squared error. This has the effect of regressing
-# on the median rather than the mean, and is more robust to outliers.
-# In R, it can be implemented using the `quantreg` package.
-
-# For this exercise, install the quantreg package, and compare
-# the behavior of the median regression fit (using the `rq()`)
-# function) to the least squares fit from `lm()` on the original
-# listings data set given below which includes all the price outliers.
-data <- listingsOrig %>%
-  mutate(price = as.numeric(gsub("\\$|,", "", price)))
-# Hint: Enter ?rq for info on the rq function.
-
-# DETAILS:
-# -Split into training/testing set
-# -Fit the median and linear regression models
-# -Plot the two lines together using `gather_predictions`,
-# which is very similar to the `add_predictions` function
-# that we saw in class. 
-# -Add "color = model" as a geom_line aesthetic
-# to differentiate the two models in the plot. ->
-
-set.seed(123)
-split <- sample.split(data$price, SplitRatio = 0.7)
-dataTrain <- subset(data, split == TRUE)
-dataTest <- subset(data, split == FALSE)
-
-# install.packages("quantreg")
-library(quantreg)
-mr_model <- rq(price ~ accommodates, data = dataTrain)
-lm_model <- lm(price ~ accommodates, data = dataTrain)
-summary(mr_model)
-summary(lm_model)
-
-dataTest %>%
-  gather_predictions(mr_model, lm_model) %>%
-  ggplot(aes(x = accommodates)) +	
-  geom_point(aes(y = price)) +	
-  geom_line(aes(y = pred, color = model))
 
 ## Summary and More about Formulas	
 # First, let's review the pattern, because it can be generalized to
@@ -382,292 +330,8 @@ dataTest %>%
 # For more detailed info, see
 # <https://stat.ethz.ch/R-manual/R-devel/library/stats/html/formula.html>.
 
-#### Model Selection and Tuning	####
-# Let's work a bit harder on predicting price, this time using more
-# than one predictor. In fact, we'll add a bunch of predictors to
-# the model and see what happens.	
+#### Classification ####
 
-# As one set of predictors, the column listings$amenities looks interesting:
-listings$amenities[1:2]
-
-# This could be good predictive information if we can separate out which
-# listing has which amenity. Our goal here is to turn the amenities
-# column into many columns, one for each amenity, and with logical
-# values indicating whether each listing has each amenity. This is
-# just a bit tricky, so I've written a function called `expand_amenities`
-# that will do this for us. We need to `source()` the file that has this
-# function in it, and then we'll call it on the `listings` data frame.	
-source("expand_amenities.R")
-listingsBig <- expand_amenities(listings)
-
-# In total, we'll use all of these predictors:
-# * accommodates	
-# * property_type	
-# * review_scores_rating	
-# * neighbourhood_cleansed	
-# * accommodates*room_type	
-# * property_type*neighbourhood_cleansed 	
-# * review_scores_rating*neighbourhood_cleansed 	
-# * accommodates*review_scores_rating	
-# * All columns created from the amenities column	
-
-# Note that whenever we include a non-numeric (or categorical)
-# variable, R is going to create one indicator variable for all
-# but one unique value of the variable. We'll see this in the
-# output of `lm()`.	
-
-# First, let's separate our new data set `listingsBig`
-# into training and test sets:
-set.seed(123)
-spl <- sample.split(listingsBig$price, SplitRatio = 0.7)
-listingsBigTrain <- subset(listingsBig, spl == TRUE)
-listingsBigTest <- subset(listingsBig, spl == FALSE)
-
-# To get R to learn the model, we need to pass it a formula.
-# We don't want to write down all those amenity variables by hand.
-# Luckily, we can use the `paste()` function to string all the
-# variable names together, and then the `as.formula()` function
-# to translate a string into a formula.	
-amenities_string <- listingsBigTrain %>%
-  select(starts_with("amenity")) %>%
-  names() %>%
-  paste(collapse = " + ")
-amenities_string # Taking a look to make sure things worked	
-
-big_formula <- as.formula(paste("price ~ accommodates + accommodates*room_type", 
-                                "property_type + neighbourhood_cleansed", 
-                                "property_type*neighbourhood_cleansed",
-                                "review_scores_rating*neighbourhood_cleansed", 
-                                "accommodates*review_scores_rating", 
-                                amenities_string, sep = " + "))
-big_formula
-
-# Now we can use the `lm()` function:
-lm2 <- lm(big_formula, data = listingsBigTrain)	
-summary(lm2)
-# What happens when we compare in-sample and
-# out-of-sample prediction performance?
-R2_2 <- summary(lm2)$r.squared
-pred_test <- predict(lm2, newdata = listingsBigTest)
-OSR2_2 <- 1 - sum((pred_test - listingsBigTest$price) ^ 2) /
-  sum((mean(listingsBigTrain$price) - listingsBigTest$price) ^ 2)
-
-# Let's add these values as a new row to our results data.frame
-# that we created earlier
-results <- results %>%
-  rbind(list(model = "big", R2 = R2_2, OSR2 = OSR2_2))
-results
-
-# This is way better than our initial model, but we've got an overfitting
-# problem here, meaning that the training error is smaller than the
-# test error. The model is too powerful for the amount of data we have.
-# Note that R recognizes this by giving warnings about a "rank-deficient fit."	
-
-
-#### Regularized/Penalized Regression	####
-# But is there still a way to use the info from all these
-# variables without overfitting? Yes! One way to do this is by
-# regularized, or penalized, regression.	
-
-# Mathematically, we add a term to the optimization problem that
-# we're solving when fitting a model, a term which penalizes models
-# that get too fancy without enough data. If we call $\beta$ the
-# coefficient vector that we'd like to learn about for linear
-# regression, then the regular regression we've worked with
-# looks like	
-# $$	
-# \min_\beta \sum_{i=1}^n (y_i-x_i^T\beta)^2,	
-# $$	
-# but penalized regression looks like	
-# $$	
-# \min_\beta \sum_{i=1}^n (y_i-x_i^T\beta)^2 + \lambda ||\beta||.	
-# $$	
-
-# There are two types of flexibility within this framework:
-# * Choice of norm, a structural decision, and	
-# * Choice of $\lambda$, a parametric decision.	
-
-# Two natural choices of norm are the Euclidean 1- and 2-norms.
-# When we use the 2-norm, it's often called "ridge regression."
-# We'll focus today on the 1-norm, or "LASSO regression". On a
-# very simple level, both types of regression shrink all the
-# elements of the unconstrained $\beta$ vector towards zero,
-# some more than others in a special way. LASSO shrinks the coefficients
-# so that some are equal to zero. This feature is nice because it helps
-# us interpret the model by getting rid of the effects of many
-# of the variables.	
-
-# To do LASSO, we'll use the `glmnet` package. Of note, this package
-# doesn't work very elegantly with the `tidyverse` since it uses
-# matrix representations of the data rather than data frame
-# representations. However, it does what it does quite well, and
-# will give us a chance to see some base R code. Let's load the
-# package and check out the function `glmnet()`. We can see the
-# documentation from the command line using `?glmnet`.	
-library(glmnet)
-?glmnet
-
-# Notice that `glmnet()` doesn't communicate with the data via
-# formulas. Instead, it wants a matrix of predictor variables and
-# a vector of values for the variable we're trying to predict,
-# including all the categorical variables that R automatically
-# expanded into indicator variables. Fortunately, R has a
-# `model.matrix()` function which takes a data frame and gets it
-# into the right form for `glmnet()` and other functions with this
-# type of input.	
-
-# First, we need to convert the data to a matrix for X and a vector for Y
-# We'll use the big_formula that we made previously for our linear
-# regression, but with the dependent variable removed.
-model_formula <- as.formula(gsub("price", "", paste(big_formula)))
-x <- model.matrix(model_formula, data = listingsBig)
-y <- as.vector(listingsBig$price)
-
-# Next, split into training/testing sets
-set.seed(123)
-spl <- sample.split(y, SplitRatio = 0.7)
-xTrain <- x[spl, ]
-xTest <- x[!spl, ]
-yTrain <- y[spl]
-yTest <- y[!spl]
-
-# Finally, let's fit a our first LASSO model. There's a way to
-# specify lambda manually, but let's just accept the default
-# for now and see what we get.
-lasso_price <- glmnet(xTrain, yTrain)
-
-# This time the `summary()` function isn't quite as useful:
-summary(lasso_price)
-
-# It does give us some info, though. Notice that "lambda" is a
-# vector of length 86. The `glmnet()` function has defined 86
-# different values of lambda and found the corresponding optimal
-# beta vector for each one! We have 86 different models here.
-# Let's look at some of the coefficients for the different models.
-# We'll start with one where lambda is really high:	
-lasso_price$lambda[1]
-nnzero(lasso_price$beta[, 1]) # How many coefficients are nonzero?	
-
-# Here the penalty on the size of the coefficients is so high
-# that R sets them all to zero. Moving to some smaller lambdas:	
-lasso_price$lambda[10]	
-lasso_price$beta[which(lasso_price$beta[, 10] != 0), 10]	
-
-lasso_price$lambda[20]	
-lasso_price$beta[which(lasso_price$beta[, 20] != 0), 20]
-
-# And, to see the whole path of lambdas:	
-plot.glmnet(lasso_price, xvar = "lambda")
-
-# Here, each line is one variable. The plot is quite messy with
-# so many variables, but it gives us the idea. As lambda shrinks,
-# the model adds more and more nonzero coefficients.	
-
-## Cross-Validation
-# How do we choose which of the 86 models to use? Or in other words,
-# how do we "tune" the $\lambda$ parameter? We'll use a similar idea
-# to the training-test set split called cross-validation.	
-
-# The idea behind cross-validation is this: what if we trained our
-# family of models (in this case 86) on only some of the training data
-# and left out some other data points? Then we could use those other
-# data points to figure out which of the lambdas works best
-# out-of-sample. So we'd have a training set for training all the
-# models, a validation set for choosing the best one, and a test set
-# to evaluate performance once we've settled on a model.	
-
-# There's just one other trick: since taking more samples
-# reduces noise, could we somehow take more validation set
-# samples? Here's where *cross*-validation comes in.
-# We divide the training data into groups called *folds*,
-# and for each fold repeat the train-validate procedure on
-# the remaining training data and use the current fold as a
-# validation set. We then average the performance of each model
-# on each fold and pick the best one.	
-
-# This is a very common *resampling* method that applies in lots and
-# lots of settings. Lucky for us the glmnet package has a very handy
-# function called `cv.glmnet()` which does the entire process
-# automatically. Let's look at the function arguments using `?cv.glmnet`.	
-
-# The relevant arguments for us right now are	
-# * x, the matrix of predictors	
-# * y, the response variable	
-# * nfolds, the number of ways to split the training set (defaults to 10)
-# * type.measure, the metric of prediction quality. It defaults to
-# mean squared error, the square of RMSE, for linear regression	
-
-# Let's do the cross-validation:
-lasso_price_cv <- cv.glmnet(xTrain, yTrain)
-summary(lasso_price_cv) # What does the model object look like?	
-
-# Notice the "lambda.min". This is the best lambda as determined by
-# the cross validation. "lambda.1se" is the largest lambda such that
-# the "error is within 1 standard error of the minimum."	
-
-# There's another automatic plotting function for `cv.glmnet()`
-# which shows the error for each model:	
-plot.cv.glmnet(lasso_price_cv)
-
-# The first vertical dotted line shows `lambda.min`, and the
-# second is `lambda.1se`. The figure illustrates that we cross-validate
-# to find the "sweet spot" where there's not too much bias (high lambda)
-# and not too much noise (low lambda). The left-hand side of this graph
-# is flatter than we'd sometimes see, meaning that the unpenalized model
-# may not be too bad. However, increasing lambda increases
-# interpretability at close to no loss in prediction accuracy!	
-
-# Let's again compare training and test error. Because we are using
-# glmnet we need to use the specialized `predict.cv.glmnet()` function:
-?predict.cv.glmnet
-pred_train <- predict.cv.glmnet(lasso_price_cv, newx = xTrain, s = "lambda.min")
-R2_lasso <- 1 - sum((pred_train - yTrain) ^ 2) /
-  sum((mean(yTrain) - yTrain) ^ 2)
-pred_test <- predict.cv.glmnet(lasso_price_cv, newx = xTest, s = "lambda.min")
-OSR2_lasso <- 1 - sum((pred_test - yTest) ^ 2) /
-  sum((mean(yTrain) - yTest) ^ 2)
-
-# Let's add these as a row to our results data.frame
-results <- results %>%
-  rbind(list(model = "lasso", R2 = R2_lasso, OSR2 = OSR2_lasso))
-results
-
-# The overfitting problem has gotten better, but hasn't yet gone
-# away completely. I added a bunch variables for dramatic effect
-# that we could probably screen out before running the LASSO if we
-# really wanted a good model.	
-
-# One more note on cross-validation: the `glmnet` package has built-in
-# functionality for cross-validation. In situations where that's not
-# the case, `modelr::crossv_kfold()` will prepare data for
-# cross-validation in a nice way.
-
-#### Exercise 3 ####
-# 1. The glmnet package is actually more versatile than just
-# LASSO regression. It also does ridge regression (with the l2 norm),
-# and any mixture of LASSO and ridge. The mixture is controlled
-# by the parameter alpha: alpha=1 is the default and corresponds
-# to LASSO, alpha=0 is ridge, and values in between are mixtures
-# between the two (check out the formula using ?glmnet).
-# One could use cross validation to choose this
-# parameter as well. For now, try just a few different values of
-# alpha on the model we built for LASSO using `cv.glmnet()`
-# (which does not cross-validate for alpha automatically).
-# How do the new models do on out-of-sample R^2? ->
-mod_alpha_0 <- cv.glmnet(xTrain, yTrain, alpha = 0)
-mod_alpha_0.5 <- cv.glmnet(xTrain, yTrain, alpha = 0.5)
-
-pred_test_0 <- predict.cv.glmnet(mod_alpha_0, newx = xTest, s = "lambda.min")
-pred_test_0.5 <- predict.cv.glmnet(mod_alpha_0.5, newx = xTest, s = "lambda.min")
-OSR2_alpha_0 <- 1 - sum((pred_test_0 - yTest) ^ 2) /
-  sum((mean(yTrain) - yTest) ^ 2)
-OSR2_alpha_0.5 <- 1 - sum((pred_test_0.5 - yTest) ^ 2) /
-  sum((mean(yTrain) - yTest) ^ 2)
-OSR2_alpha_0        
-OSR2_alpha_0.5
-results # Original model R^2 and OSR^2
-
-## Classification	
 # So far we've looked at models which predict a continuous response
 # variable. There are many related models which predict categorical
 # outcomes, such as whether an email is spam or not, or which digit
@@ -894,7 +558,7 @@ pdf("finalTree.pdf", width = 5, height = 2)
 rpart.plot(treeFinal)
 dev.off()
 
-#### Exercise 4 ####
+#### Exercise 3 ####
 # 1. Add more variables to Logistic Regression
 # Try to beat the out-of-sample performance for logistic
 # regression of elevators on price by adding new variables.
@@ -932,6 +596,289 @@ treeBig2 <- rpart(tree_formula,
 plotcp(treeBig2)
 treeFinal2 <- prune(treeBig2, 0.0024)
 prp(treeFinal2, varlen =  0)
+
+#### Model Selection and Tuning	####
+# Let's work a bit harder on predicting price, this time using more
+# than one predictor. In fact, we'll add a bunch of predictors to
+# the model and see what happens.	
+
+# As one set of predictors, the column listings$amenities looks interesting:
+listings$amenities[1:2]
+
+# This could be good predictive information if we can separate out which
+# listing has which amenity. Our goal here is to turn the amenities
+# column into many columns, one for each amenity, and with logical
+# values indicating whether each listing has each amenity. This is
+# just a bit tricky, so I've written a function called `expand_amenities`
+# that will do this for us. We need to `source()` the file that has this
+# function in it, and then we'll call it on the `listings` data frame.	
+source("expand_amenities.R")
+listingsBig <- expand_amenities(listings)
+
+# In total, we'll use all of these predictors:
+# * accommodates	
+# * property_type	
+# * review_scores_rating	
+# * neighbourhood_cleansed	
+# * accommodates*room_type	
+# * property_type*neighbourhood_cleansed 	
+# * review_scores_rating*neighbourhood_cleansed 	
+# * accommodates*review_scores_rating	
+# * All columns created from the amenities column	
+
+# Note that whenever we include a non-numeric (or categorical)
+# variable, R is going to create one indicator variable for all
+# but one unique value of the variable. We'll see this in the
+# output of `lm()`.	
+
+# First, let's separate our new data set `listingsBig`
+# into training and test sets:
+set.seed(123)
+spl <- sample.split(listingsBig$price, SplitRatio = 0.7)
+listingsBigTrain <- subset(listingsBig, spl == TRUE)
+listingsBigTest <- subset(listingsBig, spl == FALSE)
+
+# To get R to learn the model, we need to pass it a formula.
+# We don't want to write down all those amenity variables by hand.
+# Luckily, we can use the `paste()` function to string all the
+# variable names together, and then the `as.formula()` function
+# to translate a string into a formula.	
+amenities_string <- listingsBigTrain %>%
+  select(starts_with("amenity")) %>%
+  names() %>%
+  paste(collapse = " + ")
+amenities_string # Taking a look to make sure things worked	
+
+big_formula <- as.formula(paste("price ~ accommodates + accommodates*room_type", 
+                                "property_type + neighbourhood_cleansed", 
+                                "property_type*neighbourhood_cleansed",
+                                "review_scores_rating*neighbourhood_cleansed", 
+                                "accommodates*review_scores_rating", 
+                                amenities_string, sep = " + "))
+big_formula
+
+# Now we can use the `lm()` function:
+lm2 <- lm(big_formula, data = listingsBigTrain)	
+summary(lm2)
+# What happens when we compare in-sample and
+# out-of-sample prediction performance?
+r2_2 <- summary(lm2)$r.squared
+pred_test <- predict(lm2, newdata = listingsBigTest)
+osr2_2 = compute_r2(listingsBigTest$price, pred_test, mean(listingsBigTrain$price))
+
+# Let's add these values as a new row to our results data.frame
+# that we created earlier
+results <- results %>%
+  rbind(list(model = "big", R2 = r2_2, OSR2 = osr2_2))
+results
+
+# This is way better than our initial model, but we've got an overfitting
+# problem here, meaning that the training error is smaller than the
+# test error. The model is too powerful for the amount of data we have.
+# Note that R recognizes this by giving warnings about a "rank-deficient fit."	
+
+
+#### Regularized/Penalized Regression	####
+# But is there still a way to use the info from all these
+# variables without overfitting? Yes! One way to do this is by
+# regularized, or penalized, regression.	
+
+# Mathematically, we add a term to the optimization problem that
+# we're solving when fitting a model, a term which penalizes models
+# that get too fancy without enough data. If we call $\beta$ the
+# coefficient vector that we'd like to learn about for linear
+# regression, then the regular regression we've worked with
+# looks like	
+# $$	
+# \min_\beta \sum_{i=1}^n (y_i-x_i^T\beta)^2,	
+# $$	
+# but penalized regression looks like	
+# $$	
+# \min_\beta \sum_{i=1}^n (y_i-x_i^T\beta)^2 + \lambda ||\beta||.	
+# $$	
+
+# There are two types of flexibility within this framework:
+# * Choice of norm, a structural decision, and	
+# * Choice of $\lambda$, a parametric decision.	
+
+# Two natural choices of norm are the Euclidean 1- and 2-norms.
+# When we use the 2-norm, it's often called "ridge regression."
+# We'll focus today on the 1-norm, or "LASSO regression". On a
+# very simple level, both types of regression shrink all the
+# elements of the unconstrained $\beta$ vector towards zero,
+# some more than others in a special way. LASSO shrinks the coefficients
+# so that some are equal to zero. This feature is nice because it helps
+# us interpret the model by getting rid of the effects of many
+# of the variables.	
+
+# To do LASSO, we'll use the `glmnet` package. Of note, this package
+# doesn't work very elegantly with the `tidyverse` since it uses
+# matrix representations of the data rather than data frame
+# representations. However, it does what it does quite well, and
+# will give us a chance to see some base R code. Let's load the
+# package and check out the function `glmnet()`. We can see the
+# documentation from the command line using `?glmnet`.	
+library(glmnet)
+?glmnet
+
+# Notice that `glmnet()` doesn't communicate with the data via
+# formulas. Instead, it wants a matrix of predictor variables and
+# a vector of values for the variable we're trying to predict,
+# including all the categorical variables that R automatically
+# expanded into indicator variables. Fortunately, R has a
+# `model.matrix()` function which takes a data frame and gets it
+# into the right form for `glmnet()` and other functions with this
+# type of input.	
+
+# First, we need to convert the data to a matrix for X and a vector for Y
+# We'll use the big_formula that we made previously for our linear
+# regression, but with the dependent variable removed.
+model_formula <- as.formula(gsub("price", "", paste(big_formula)))
+x <- model.matrix(model_formula, data = listingsBig)
+y <- as.vector(listingsBig$price)
+
+# Next, split into training/testing sets
+set.seed(123)
+spl <- sample.split(y, SplitRatio = 0.7)
+xTrain <- x[spl, ]
+xTest <- x[!spl, ]
+yTrain <- y[spl]
+yTest <- y[!spl]
+
+# Finally, let's fit a our first LASSO model. There's a way to
+# specify lambda manually, but let's just accept the default
+# for now and see what we get.
+lasso_price <- glmnet(xTrain, yTrain)
+
+# This time the `summary()` function isn't quite as useful:
+summary(lasso_price)
+
+# It does give us some info, though. Notice that "lambda" is a
+# vector of length 86. The `glmnet()` function has defined 86
+# different values of lambda and found the corresponding optimal
+# beta vector for each one! We have 86 different models here.
+# Let's look at some of the coefficients for the different models.
+# We'll start with one where lambda is really high:	
+lasso_price$lambda[1]
+nnzero(lasso_price$beta[, 1]) # How many coefficients are nonzero?	
+
+# Here the penalty on the size of the coefficients is so high
+# that R sets them all to zero. Moving to some smaller lambdas:	
+lasso_price$lambda[10]	
+lasso_price$beta[which(lasso_price$beta[, 10] != 0), 10]	
+
+lasso_price$lambda[20]	
+lasso_price$beta[which(lasso_price$beta[, 20] != 0), 20]
+
+# And, to see the whole path of lambdas:	
+plot.glmnet(lasso_price, xvar = "lambda")
+
+# Here, each line is one variable. The plot is quite messy with
+# so many variables, but it gives us the idea. As lambda shrinks,
+# the model adds more and more nonzero coefficients.	
+
+## Cross-Validation
+# How do we choose which of the 86 models to use? Or in other words,
+# how do we "tune" the $\lambda$ parameter? We'll use a similar idea
+# to the training-test set split called cross-validation.	
+
+# The idea behind cross-validation is this: what if we trained our
+# family of models (in this case 86) on only some of the training data
+# and left out some other data points? Then we could use those other
+# data points to figure out which of the lambdas works best
+# out-of-sample. So we'd have a training set for training all the
+# models, a validation set for choosing the best one, and a test set
+# to evaluate performance once we've settled on a model.	
+
+# There's just one other trick: since taking more samples
+# reduces noise, could we somehow take more validation set
+# samples? Here's where *cross*-validation comes in.
+# We divide the training data into groups called *folds*,
+# and for each fold repeat the train-validate procedure on
+# the remaining training data and use the current fold as a
+# validation set. We then average the performance of each model
+# on each fold and pick the best one.	
+
+# This is a very common *resampling* method that applies in lots and
+# lots of settings. Lucky for us the glmnet package has a very handy
+# function called `cv.glmnet()` which does the entire process
+# automatically. Let's look at the function arguments using `?cv.glmnet`.	
+
+# The relevant arguments for us right now are	
+# * x, the matrix of predictors	
+# * y, the response variable	
+# * nfolds, the number of ways to split the training set (defaults to 10)
+# * type.measure, the metric of prediction quality. It defaults to
+# mean squared error, the square of RMSE, for linear regression	
+
+# Let's do the cross-validation:
+lasso_price_cv <- cv.glmnet(xTrain, yTrain)
+summary(lasso_price_cv) # What does the model object look like?	
+
+# Notice the "lambda.min". This is the best lambda as determined by
+# the cross validation. "lambda.1se" is the largest lambda such that
+# the "error is within 1 standard error of the minimum."	
+
+# There's another automatic plotting function for `cv.glmnet()`
+# which shows the error for each model:	
+plot.cv.glmnet(lasso_price_cv)
+
+# The first vertical dotted line shows `lambda.min`, and the
+# second is `lambda.1se`. The figure illustrates that we cross-validate
+# to find the "sweet spot" where there's not too much bias (high lambda)
+# and not too much noise (low lambda). The left-hand side of this graph
+# is flatter than we'd sometimes see, meaning that the unpenalized model
+# may not be too bad. However, increasing lambda increases
+# interpretability at close to no loss in prediction accuracy!	
+
+# Let's again compare training and test error. Because we are using
+# glmnet we need to use the specialized `predict.cv.glmnet()` function:
+?predict.cv.glmnet
+pred_train <- predict.cv.glmnet(lasso_price_cv, newx = xTrain, s = "lambda.min")
+r2_lasso = compute_r2(yTrain, pred_train, mean(yTrain))
+
+pred_test <- predict.cv.glmnet(lasso_price_cv, newx = xTest, s = "lambda.min")
+osr2_lasso = compute_r2(yTest, pred_test, mean(yTrain))
+
+# Let's add these as a row to our results data.frame
+results <- results %>%
+  rbind(list(model = "lasso", R2 = r2_lasso, OSR2 = osr2_lasso))
+results
+
+# The overfitting problem has gotten better, but hasn't yet gone
+# away completely. I added a bunch variables for dramatic effect
+# that we could probably screen out before running the LASSO if we
+# really wanted a good model.	
+
+# One more note on cross-validation: the `glmnet` package has built-in
+# functionality for cross-validation. In situations where that's not
+# the case, `modelr::crossv_kfold()` will prepare data for
+# cross-validation in a nice way.
+
+#### Exercise 4 ####
+# 1. The glmnet package is actually more versatile than just
+# LASSO regression. It also does ridge regression (with the l2 norm),
+# and any mixture of LASSO and ridge. The mixture is controlled
+# by the parameter alpha: alpha=1 is the default and corresponds
+# to LASSO, alpha=0 is ridge, and values in between are mixtures
+# between the two (check out the formula using ?glmnet).
+# One could use cross validation to choose this
+# parameter as well. For now, try just a few different values of
+# alpha on the model we built for LASSO using `cv.glmnet()`
+# (which does not cross-validate for alpha automatically).
+# How do the new models do on out-of-sample R^2? ->
+mod_alpha_0 <- cv.glmnet(xTrain, yTrain, alpha = 0)
+mod_alpha_0.5 <- cv.glmnet(xTrain, yTrain, alpha = 0.5)
+
+pred_test_0 <- predict.cv.glmnet(mod_alpha_0, newx = xTest, s = "lambda.min")
+pred_test_0.5 <- predict.cv.glmnet(mod_alpha_0.5, newx = xTest, s = "lambda.min")
+OSR2_alpha_0 <- 1 - sum((pred_test_0 - yTest) ^ 2) /
+  sum((mean(yTrain) - yTest) ^ 2)
+OSR2_alpha_0.5 <- 1 - sum((pred_test_0.5 - yTest) ^ 2) /
+  sum((mean(yTrain) - yTest) ^ 2)
+OSR2_alpha_0        
+OSR2_alpha_0.5
+results # Original model R^2 and OSR^2
 
 #### Natural Language Processing ####
 # Before we begin after the break, let's refresh our session.
