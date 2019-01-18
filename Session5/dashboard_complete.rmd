@@ -1,0 +1,40 @@
+---
+title: "Example Dashboard"
+author: You and your partner!  
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme: united
+---
+
+
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+# knitr::opts_chunk$set(echo = FALSE, cache = TRUE)
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Map of Listings
+
+```{r, echo = FALSE}
+source('case_study_complete.R')
+m
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Trends by Cluster
+
+```{r, echo = FALSE}
+cluster_trends
+```
+
+### Commentary
+
+Write your commentary here. Clearly describe the hypothesis we posed and the analytical strategy we used to test it. Does the analysis support the hypothesis? What else have we learned? What would you recommend to learn more from this data set? How might AirBnB decision-makers act on our findings? 
+

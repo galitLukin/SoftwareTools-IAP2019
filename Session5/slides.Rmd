@@ -28,22 +28,56 @@ prices <- list.files('data/prices', full.names = T) %>%
 
 # Good Morning
 
-## Some Draft Session Titles
+# What is Data Science? {.center}
 
-<br/>
+##  {.center}
 
->- Don't Write For Loops   
->- Stupid Data Frame Tricks
->- Stupid Data Frame *Methods*
->- ***"Advanced Topics in Data Science"*** ("I Give Up On Descriptive Names")
+> *The key word in "Data Science" is not "Data", it is "Science"* 
 
-<br/>
+- [Jeff Leek, Simply Statistics](https://simplystatistics.org/2013/12/12/the-key-word-in-data-science-is-not-data-it-is-science/)
 
-<div class = 'fragment'> 
-So, uh, what are we actually doing here?
-</div>
+## Data Science Is the Practice of...
+
+>- **Asking impactful questions** of a data set;
+>- **Choosing appropriate methods** by which to answer those questions; and  
+>- **implementing** those methods in practical fashion. 
+>- Ok....but how do we operationalize this? 
 
 ## My Favorite Picture
+
+<div class = 'fragment'>
+```{r, out.height = 400, out.width = 500, echo = FALSE, fig.align='center'}
+knitr::include_graphics('figs/spongebob_hopeful.jpg')
+```
+</div>
+
+## My Favorite Picture {data-transition="none"}
+
+```{r, out.height = 400, out.width=800, echo = FALSE, fig.align='center'}
+knitr::include_graphics('figs/patrickstewartwide.jpg')
+```
+
+## My ~~Favorite~~ Second Favorite Picture
+
+```{r, out.height = 500, out.width = 800,echo = FALSE, fig.align='center'}
+knitr::include_graphics('figs/gettyimages-871679690-1510950426.jpg')
+```
+
+## My ~~Favorite~~ Third Favorite Picture 
+
+```{r, out.height = 300, out.width = 800, echo = FALSE, fig.align='center'}
+knitr::include_graphics('https://ismayc.github.io/moderndiver-book/images/tidy1.png')
+```
+
+(*Image credit: Hadley Wickham*)
+
+## ...
+
+```{r, out.height = 400, out.width = 500, echo = FALSE, fig.align='center'}
+knitr::include_graphics('figs/spongebob_sad.png')
+```
+
+## My Third Favorite Picture
 
 <br/>
 ```{r, out.height = 300, echo = FALSE, fig.align='center'}
@@ -75,6 +109,7 @@ knitr::include_graphics('https://ismayc.github.io/moderndiver-book/images/tidy1.
 
 >- Work through an extended example of the **data-scientific method.** 
 >- Learn how to construct **complex data pipelines** efficiently and elegantly. 
+>- Display our results in an attractive format suitable for presentations to decision-makers. 
 >- And, most importantly...
 
 ## Impress Jean-Luc Picard
@@ -85,7 +120,7 @@ knitr::include_graphics('figs/not_impressed.jpg')
 
 ## Exercise 0.0
 
-1. Open `case_study_student.R` in `R`. You may use `case_study_complete.R` for troubleshooting if needed. 
+1. Open `my_case_study.R` in `R`. You may use `case_study_complete.R` for troubleshooting if needed. 
 2. Session $->$ Set Working Directory $->$ To Source File Location. 
 
 ## Exercise 0.1
@@ -101,6 +136,12 @@ knitr::include_graphics('figs/not_impressed.jpg')
 knitr::include_graphics('figs/handshake.jpg')
 ```
 </div>
+
+## Exercise 0.2
+
+```{r, eval = FALSE}
+install.packages(c('leaflet','flexdashboard'))
+```
 
 # Case Study, Part 1 {.center}
 
@@ -167,17 +208,6 @@ If $X = (x_1,\ldots,x_n)$, then
 > 2. `c('To', 'boldly', 'go') %>% map(toupper)`
 > 3. `c('To', 'boldly', 'go') %>% map(rep, 2)`
 
-## `Reduce()` Combines {.center}
-
-If $g$ is a binary function, then 
-
-`reduce(X, g)` = $g(...(g(g(x_1,x_2),x_3),...,x_n)$
-
-## What  do these do? {.center}
-
-> 1. `c('To', 'boldly', 'go') %>% map(nchar) %>% reduce(sum)`
-> 2. `c('To', 'boldly', 'go') %>% reduce(paste)`  
-
 # Case Study, Part 2 {.center}
 
 ## What We'd Like to Do {.center}
@@ -233,13 +263,7 @@ prices_nested <- prices %>%
 map(prices_nested, class) %>% unlist()
 ```
 
-## Ew. 
-
-```{r, echo = FALSE,  out.width = 550}
-knitr::include_graphics('figs/df_list.jpg')
-```
-
-## Actually...
+## What did we just do? 
 
 ```{r}
 prices_nested %>% head()
@@ -249,12 +273,6 @@ prices_nested %>% head()
 
 ```{r, echo = FALSE, out.height=500, out.width = 700}
 knitr::include_graphics('figs/did_it_no_words.jpg')
-```
-
-## Just checking
-
-```{r}
-prices_nested$data[[1]] # get the first item of the list
 ```
 
 ## We were here: 
