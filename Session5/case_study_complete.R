@@ -37,15 +37,24 @@ library(leaflet)   #' for geospatial visualization
 #' bedrooms and bathrooms; ratings, that kind of thing. 
 
 #' The data is contained in two directories, but each data set is broken up
-#' into many separate pieces. We're going to take our first look at the `map()`
-#' function in order to read these in efficiently. 
+#' into many separate pieces. Here's one way to handle that: 
+
+names <- list.files('data/prices', full.names = T)
+
+prices <- data_frame()
+for(name in names){
+  df <- read_csv(name)
+  prices <- rbind(df, prices)
+}
+prices
+
 
 #'---------------------------------------------------------------------------- 
 #' 
 #'----------------------------------------------------------------------------
 
 #' Now that we've discussed the concept behind `map()`, let's use it to read 
-#' in the data. 
+#' in the data more efficiently. 
 
 listings <- list.files('data/listings', full.names = TRUE) %>% 
   map(read_csv) %>% 
@@ -189,6 +198,7 @@ prices_modeled <- prices_modeled %>%
 #' Now, let's plot all four columns 
 #' (price_per, trend, periodic, and remainder) as facets on the same visualization. 
 #' To do this, we use `gather()` to "reshape" our data to be longer. 
+
 prices_modeled %>% 
 	head(1500) %>% 
 	select(-.se.fit, -.resid, -weekday) %>% 

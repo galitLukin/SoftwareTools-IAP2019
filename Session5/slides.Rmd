@@ -8,7 +8,7 @@ output:
     slide_level: 2
     theme: blood
     highlight: zenburn
-    # css: slide_style.css
+    css: slide_style.css
     reveal_options:
       slideNumber: false
       previewLinks: true
@@ -25,8 +25,6 @@ prices <- list.files('data/prices', full.names = T) %>%
   map(read_csv) %>% 
   reduce(rbind)
 ```
-
-# Good Morning
 
 # What is Data Science? {.center}
 
@@ -120,8 +118,9 @@ knitr::include_graphics('figs/not_impressed.jpg')
 
 ## Exercise 0.0
 
-1. Open `my_case_study.R` in `R`. You may use `case_study_complete.R` for troubleshooting if needed. 
-2. Session $->$ Set Working Directory $->$ To Source File Location. 
+1. Open `my_case_study.R` in RStudio. You may use `case_study_complete.R` for troubleshooting if needed. 
+2. Open `my_dashboard.rmd` in RStudio. 
+3. Session $\rightarrow$ Set Working Directory $\rightarrow$ To Source File Location. 
 
 ## Exercise 0.1
 
@@ -137,7 +136,7 @@ knitr::include_graphics('figs/handshake.jpg')
 ```
 </div>
 
-## Exercise 0.2
+## Exercise 0.2 {.center}
 
 ```{r, eval = FALSE}
 install.packages(c('leaflet','flexdashboard'))
@@ -189,7 +188,7 @@ What if we could...
 knitr::include_graphics('figs/vectorize.jpg')
 ```
 
-## `map()` {.center}
+## `map()` vectorizes {.center}
 
 <br/>
 
@@ -204,9 +203,25 @@ If $X = (x_1,\ldots,x_n)$, then
 ## What do these do? {.center}
 <br/>
 
-> 1. `c('To', 'boldly', 'go') %>% map(nchar)`
-> 2. `c('To', 'boldly', 'go') %>% map(toupper)`
-> 3. `c('To', 'boldly', 'go') %>% map(rep, 2)`
+```{r, eval = FALSE}
+c('To', 'boldly', 'go') %>% map(nchar)
+c('To', 'boldly', 'go') %>% map(toupper)
+c('To', 'boldly', 'go') %>% map(rep, 2)
+```
+
+## `reduce()` Combines {.center}
+
+If $g$ is a binary function, then 
+
+`reduce(X, g)` = $g(...(g(g(x_1,x_2),x_3),...,x_n)$
+
+## What  do these do? {.center}
+
+```{r, eval = FALSE}
+c('To', 'boldly', 'go') %>% map(nchar) %>% reduce(sum)
+c('To', 'boldly', 'go') %>% reduce(paste)
+```
+
 
 # Case Study, Part 2 {.center}
 
