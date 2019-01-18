@@ -19,8 +19,7 @@ Column {data-width=650}
 ### Map of Listings
 
 ```{r, echo = FALSE}
-source('my_case_study.R')
-m
+
 ```
 
 Column {data-width=350}
@@ -29,7 +28,7 @@ Column {data-width=350}
 ### Trends by Cluster
 
 ```{r, echo = FALSE}
-cluster_trends
+
 ```
 
 ### Commentary
